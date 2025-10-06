@@ -508,6 +508,73 @@
             </div>
         </div>
 
+        <!-- Streamer Info -->
+        <div class="chart-container" id="streamerInfo" style="display: none;">
+            <div class="chart-title">📺 Live Stream Info</div>
+            <div style="display: grid; grid-template-columns: auto 1fr; gap: 20px; align-items: center;">
+                <img id="streamerAvatar" src="" alt="Avatar" style="width: 80px; height: 80px; border-radius: 50%; border: 3px solid #fe2c55;">
+                <div>
+                    <div style="font-size: 24px; font-weight: bold; margin-bottom: 5px;">
+                        <span id="streamerNickname"></span>
+                        <span id="verifiedBadge" style="display: none;">✓</span>
+                    </div>
+                    <div style="color: rgba(255,255,255,0.7); margin-bottom: 5px;">
+                        @<span id="streamerUsername"></span>
+                    </div>
+                    <div style="color: rgba(255,255,255,0.5); font-size: 14px;">
+                        👥 <span id="followerCountInfo">0</span> followers
+                    </div>
+                </div>
+            </div>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <div style="color: rgba(255,255,255,0.7);">
+                    Room ID: <span id="roomId" style="color: #fe2c55;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Revenue Analytics -->
+        <div class="chart-container">
+            <div class="chart-title">💰 Revenue Analytics</div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">💎 Total Diamonds</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #4a9eff;" id="revenueDiamonds">0</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">💵 Total Revenue</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #00ff00;" id="revenueTotalUSD">$0.00</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">🎯 Creator Earnings</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #ff6b9d;" id="revenueCreatorEarnings">$0.00</div>
+                    <div style="font-size: 12px; opacity: 0.5; margin-top: 5px;">50% cut</div>
+                </div>
+                <div style="text-align: center; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">⚡ Revenue/Min</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #ffd700;" id="revenuePerMinute">$0.00</div>
+                </div>
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; padding: 15px; background: rgba(255,255,255,0.03); border-radius: 10px;">
+                <div>
+                    <div style="font-size: 12px; opacity: 0.7;">📊 Revenue/Viewer:</div>
+                    <div style="font-size: 18px; color: #4a9eff;" id="revenuePerViewer">$0.0000</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; opacity: 0.7;">📈 Projected Hourly:</div>
+                    <div style="font-size: 18px; color: #00ff00;" id="projectedHourly">$0.00</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; opacity: 0.7;">🚀 Projected Daily:</div>
+                    <div style="font-size: 18px; color: #ff6b9d;" id="projectedDaily">$0.00</div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; opacity: 0.7;">🏦 TikTok Cut:</div>
+                    <div style="font-size: 18px; color: #fe2c55;" id="revenueTiktokEarnings">$0.00</div>
+                </div>
+            </div>
+        </div>
+
         <!-- Bot Detection -->
         <div class="chart-container">
             <div class="chart-title">🤖 Bot Detection</div>
@@ -1030,6 +1097,48 @@
 
         socket.on('error', (data) => {
             console.error('Error:', data.message);
+        });
+
+        // Room Info
+        socket.on('room-info', (data) => {
+            console.log('📋 Room info recibido:', data);
+
+            const streamerInfoDiv = document.getElementById('streamerInfo');
+            if (data.owner && data.owner.username) {
+                streamerInfoDiv.style.display = 'block';
+
+                document.getElementById('streamerAvatar').src = data.owner.avatarUrl || '';
+                document.getElementById('streamerNickname').textContent = data.owner.nickname || data.owner.username;
+                document.getElementById('streamerUsername').textContent = data.owner.username;
+                document.getElementById('roomId').textContent = data.roomId || 'N/A';
+                document.getElementById('followerCountInfo').textContent = (data.owner.followerCount || 0).toLocaleString();
+
+                const verifiedBadge = document.getElementById('verifiedBadge');
+                if (data.owner.verified) {
+                    verifiedBadge.style.display = 'inline';
+                    verifiedBadge.style.color = '#fe2c55';
+                }
+            }
+        });
+
+        // Available Gifts Catalog
+        socket.on('available-gifts', (data) => {
+            console.log(`🎁 Catálogo de regalos recibido: ${data.total} regalos`);
+            // Por ahora solo lo logueamos, en el futuro se puede mostrar en un modal o lista
+        });
+
+        // Revenue Analytics
+        socket.on('revenue-update', (data) => {
+            console.log('💰 Revenue update:', data);
+
+            document.getElementById('revenueDiamonds').textContent = parseInt(data.diamonds || 0).toLocaleString();
+            document.getElementById('revenueTotalUSD').textContent = '$' + (parseFloat(data.totalUSD) || 0).toFixed(2);
+            document.getElementById('revenueCreatorEarnings').textContent = '$' + (parseFloat(data.creatorEarnings) || 0).toFixed(2);
+            document.getElementById('revenueTiktokEarnings').textContent = '$' + (parseFloat(data.tiktokEarnings) || 0).toFixed(2);
+            document.getElementById('revenuePerMinute').textContent = '$' + (parseFloat(data.revenuePerMinute) || 0).toFixed(2);
+            document.getElementById('revenuePerViewer').textContent = '$' + (parseFloat(data.revenuePerViewer) || 0).toFixed(4);
+            document.getElementById('projectedHourly').textContent = '$' + (parseFloat(data.projectedHourly) || 0).toFixed(2);
+            document.getElementById('projectedDaily').textContent = '$' + (parseFloat(data.projectedDaily) || 0).toFixed(2);
         });
     </script>
 </body>
