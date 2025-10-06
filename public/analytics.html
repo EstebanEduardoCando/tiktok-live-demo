@@ -1,0 +1,1036 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok LIVE Analytics Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #000000, #1a1a2e, #16213e);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 42px;
+            margin-bottom: 10px;
+            background: linear-gradient(90deg, #fe2c55, #ff6b9d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        #connectForm {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 20px;
+            max-width: 600px;
+            margin: 50px auto;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        #connectForm.hidden {
+            display: none;
+        }
+
+        input {
+            padding: 15px 20px;
+            font-size: 18px;
+            border: 2px solid rgba(254, 44, 85, 0.3);
+            border-radius: 12px;
+            width: 350px;
+            margin: 10px;
+            background: rgba(255,255,255,0.05);
+            color: white;
+            transition: all 0.3s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #fe2c55;
+            background: rgba(255,255,255,0.1);
+        }
+
+        input::placeholder {
+            color: rgba(255,255,255,0.5);
+        }
+
+        button {
+            padding: 15px 40px;
+            font-size: 18px;
+            background: linear-gradient(135deg, #fe2c55, #ff6b9d);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(254, 44, 85, 0.4);
+        }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(254, 44, 85, 0.6);
+        }
+
+        #dashboard {
+            display: none;
+        }
+
+        #dashboard.active {
+            display: block;
+        }
+
+        #status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0,255,0,0.1);
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border: 1px solid rgba(0,255,0,0.3);
+        }
+
+        #status.error {
+            background: rgba(255,0,0,0.1);
+            border-color: rgba(255,0,0,0.3);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            transition: transform 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            border-color: rgba(254, 44, 85, 0.5);
+        }
+
+        .stat-label {
+            font-size: 14px;
+            color: rgba(255,255,255,0.7);
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #fe2c55, #ff6b9d);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .stat-subvalue {
+            font-size: 14px;
+            color: rgba(255,255,255,0.5);
+            margin-top: 5px;
+        }
+
+        .chart-container {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 20px;
+            margin-bottom: 20px;
+            color: #fe2c55;
+        }
+
+        .two-column {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .leaderboard {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .leaderboard-title {
+            font-size: 20px;
+            margin-bottom: 15px;
+            color: #fe2c55;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .leaderboard-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            border-left: 3px solid transparent;
+            transition: all 0.3s;
+        }
+
+        .leaderboard-item:nth-child(1) { border-left-color: #ffd700; }
+        .leaderboard-item:nth-child(2) { border-left-color: #c0c0c0; }
+        .leaderboard-item:nth-child(3) { border-left-color: #cd7f32; }
+
+        .leaderboard-item:hover {
+            background: rgba(255,255,255,0.1);
+            transform: translateX(5px);
+        }
+
+        .leaderboard-rank {
+            font-weight: bold;
+            width: 30px;
+            color: #fe2c55;
+        }
+
+        .leaderboard-username {
+            flex: 1;
+        }
+
+        .leaderboard-value {
+            font-weight: bold;
+            color: #ff6b9d;
+        }
+
+        #chatFeed {
+            background: rgba(255,255,255,0.05);
+            padding: 25px;
+            border-radius: 15px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1);
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            display: flex;
+            align-items: flex-start;
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 12px;
+            background: linear-gradient(135deg, #fe2c55, #ff6b9d);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+        }
+
+        .chat-content {
+            flex: 1;
+        }
+
+        .chat-username {
+            font-weight: bold;
+            color: #fe2c55;
+            margin-bottom: 4px;
+        }
+
+        .chat-text {
+            color: rgba(255,255,255,0.9);
+        }
+
+        .sentiment-badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+
+        .sentiment-positive {
+            background: rgba(0,255,0,0.2);
+            color: #00ff00;
+        }
+
+        .sentiment-neutral {
+            background: rgba(255,170,0,0.2);
+            color: #ffaa00;
+        }
+
+        .sentiment-negative {
+            background: rgba(255,0,0,0.2);
+            color: #ff0000;
+        }
+
+        .bot-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            margin-left: 8px;
+            font-weight: bold;
+        }
+
+        .bot-confirmed {
+            background: rgba(255,0,0,0.3);
+            color: #ff0000;
+            border: 1px solid #ff0000;
+        }
+
+        .bot-likely {
+            background: rgba(255,170,0,0.3);
+            color: #ffaa00;
+            border: 1px solid #ffaa00;
+        }
+
+        .bot-suspicious {
+            background: rgba(255,255,0,0.2);
+            color: #ffff00;
+            border: 1px solid #ffff00;
+        }
+
+        .bot-list-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 6px 0;
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            border-left: 3px solid transparent;
+        }
+
+        .bot-list-item.confirmed { border-left-color: #ff0000; }
+        .bot-list-item.likely { border-left-color: #ffaa00; }
+        .bot-list-item.suspicious { border-left-color: #ffff00; }
+
+        .gift-notification {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #000;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 15px;
+            animation: giftPop 0.5s ease-out;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .gift-image {
+            width: 50px;
+            height: 50px;
+            margin-right: 15px;
+            border-radius: 10px;
+        }
+
+        .like-animation {
+            position: fixed;
+            font-size: 60px;
+            animation: likeFloat 2s ease-out;
+            pointer-events: none;
+            z-index: 1000;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes giftPop {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.05);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes likeFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-200px) scale(1.5);
+            }
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(255,255,255,0.05);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: linear-gradient(135deg, #fe2c55, #ff6b9d);
+            border-radius: 10px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: linear-gradient(135deg, #ff6b9d, #fe2c55);
+        }
+
+        @media (max-width: 768px) {
+            .two-column {
+                grid-template-columns: 1fr;
+            }
+
+            .grid {
+                grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎵 TikTok LIVE Analytics</h1>
+    </div>
+
+    <!-- Formulario de conexión -->
+    <div id="connectForm">
+        <h2 style="margin-bottom: 20px;">Conectar a un LIVE</h2>
+        <p style="margin-bottom: 20px; opacity: 0.8;">Ingresa el usuario de TikTok (sin @)</p>
+        <input type="text" id="usernameInput" placeholder="Ej: usuario123" />
+        <br>
+        <button onclick="connectToLive()">🔴 Conectar al Dashboard</button>
+        <p style="margin-top: 20px; font-size: 14px; opacity: 0.6;">
+            El usuario debe estar en LIVE en este momento
+        </p>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard">
+        <div id="status"></div>
+
+        <!-- Métricas principales -->
+        <div class="grid">
+            <div class="stat-card">
+                <div class="stat-label">👁️ Viewers Actuales</div>
+                <div class="stat-value" id="viewerCount">0</div>
+                <div class="stat-subvalue">Peak: <span id="peakViewers">0</span></div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">👥 Viewers Únicos</div>
+                <div class="stat-value" id="uniqueViewers">0</div>
+                <div class="stat-subvalue">Usuarios diferentes</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">❤️ Total Likes</div>
+                <div class="stat-value" id="likeCount">0</div>
+                <div class="stat-subvalue"><span id="likesPerMin">0</span> /min</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">💬 Total Comentarios</div>
+                <div class="stat-value" id="commentCount">0</div>
+                <div class="stat-subvalue"><span id="commentsPerMin">0</span> /min</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">🎁 Regalos Recibidos</div>
+                <div class="stat-value" id="giftCount">0</div>
+                <div class="stat-subvalue">💎 <span id="diamondCount">0</span> diamantes</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">👤 Nuevos Seguidores</div>
+                <div class="stat-value" id="followerCount">0</div>
+                <div class="stat-subvalue">Durante el LIVE</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">📤 Compartidos</div>
+                <div class="stat-value" id="shareCount">0</div>
+                <div class="stat-subvalue">Shares totales</div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-label">📊 Engagement Rate</div>
+                <div class="stat-value" id="engagementRate">0%</div>
+                <div class="stat-subvalue">Tasa de interacción</div>
+            </div>
+        </div>
+
+        <!-- Bot Detection -->
+        <div class="chart-container">
+            <div class="chart-title">🤖 Bot Detection</div>
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">Total Users</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #4a9eff;" id="totalUsers">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">Suspected Bots</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #ffaa00;" id="suspectedBots">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">Confirmed Bots</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #ff0000;" id="confirmedBots">0</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">Bot Rate</div>
+                    <div style="font-size: 32px; font-weight: bold; color: #fe2c55;" id="botPercentage">0%</div>
+                </div>
+            </div>
+            <div style="font-weight: bold; margin-bottom: 10px; opacity: 0.9;">Top Suspected Bots:</div>
+            <div id="botList" style="max-height: 250px; overflow-y: auto;">
+                <div style="text-align: center; opacity: 0.5; padding: 20px;">Esperando datos...</div>
+            </div>
+        </div>
+
+        <!-- Sentiment Analysis -->
+        <div class="chart-container">
+            <div class="chart-title">😊 Sentiment Analysis</div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                <div style="text-align: center;">
+                    <div style="font-size: 48px;">😊</div>
+                    <div style="font-size: 32px; color: #00ff00;" id="positivePercent">0%</div>
+                    <div style="opacity: 0.7;">Positivo</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 48px;">😐</div>
+                    <div style="font-size: 32px; color: #ffaa00;" id="neutralPercent">0%</div>
+                    <div style="opacity: 0.7;">Neutral</div>
+                </div>
+                <div style="text-align: center;">
+                    <div style="font-size: 48px;">😠</div>
+                    <div style="font-size: 32px; color: #ff0000;" id="negativePercent">0%</div>
+                    <div style="opacity: 0.7;">Negativo</div>
+                </div>
+            </div>
+            <canvas id="sentimentChart" height="60"></canvas>
+        </div>
+
+        <!-- Gráficos -->
+        <div class="chart-container">
+            <div class="chart-title">📈 Viewers Over Time</div>
+            <canvas id="viewersChart" height="80"></canvas>
+        </div>
+
+        <div class="chart-container">
+            <div class="chart-title">⚡ Engagement Metrics</div>
+            <canvas id="engagementChart" height="80"></canvas>
+        </div>
+
+        <!-- Leaderboards -->
+        <div class="two-column">
+            <div class="leaderboard">
+                <div class="leaderboard-title">🏆 Top Commenters</div>
+                <div id="topCommenters">
+                    <div style="text-align: center; opacity: 0.5; padding: 20px;">Esperando datos...</div>
+                </div>
+            </div>
+
+            <div class="leaderboard">
+                <div class="leaderboard-title">💎 Top Donors</div>
+                <div id="topDonors">
+                    <div style="text-align: center; opacity: 0.5; padding: 20px;">Esperando datos...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chat Feed -->
+        <div id="chatFeed">
+            <h2 style="margin-bottom: 20px; color: #fe2c55;">💬 Live Chat Feed</h2>
+            <div id="messages"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+
+        let stats = {
+            viewers: 0,
+            uniqueViewers: 0,
+            peakViewers: 0,
+            likes: 0,
+            comments: 0,
+            gifts: 0,
+            diamonds: 0,
+            followers: 0,
+            shares: 0
+        };
+
+        let charts = {};
+
+        function connectToLive() {
+            const username = document.getElementById('usernameInput').value.trim();
+
+            if (!username) {
+                alert('Por favor ingresa un nombre de usuario');
+                return;
+            }
+
+            document.getElementById('connectForm').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('active');
+
+            socket.emit('start-connection', username);
+            updateStatus('Conectando a @' + username + '...', false);
+
+            initCharts();
+        }
+
+        function updateStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'error' : '';
+        }
+
+        function initCharts() {
+            // Sentiment Chart
+            const sentimentCtx = document.getElementById('sentimentChart').getContext('2d');
+            charts.sentiment = new Chart(sentimentCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Positivo', 'Neutral', 'Negativo'],
+                    datasets: [{
+                        data: [0, 0, 0],
+                        backgroundColor: [
+                            'rgba(0, 255, 0, 0.8)',
+                            'rgba(255, 170, 0, 0.8)',
+                            'rgba(255, 0, 0, 0.8)'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { color: 'rgba(255,255,255,0.9)' }
+                        }
+                    }
+                }
+            });
+
+            // Viewers Chart
+            const viewersCtx = document.getElementById('viewersChart').getContext('2d');
+            charts.viewers = new Chart(viewersCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Viewers',
+                        data: [],
+                        borderColor: '#fe2c55',
+                        backgroundColor: 'rgba(254, 44, 85, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'rgba(255,255,255,0.7)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgba(255,255,255,0.7)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    }
+                }
+            });
+
+            // Engagement Chart
+            const engagementCtx = document.getElementById('engagementChart').getContext('2d');
+            charts.engagement = new Chart(engagementCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: 'Comentarios',
+                            data: [],
+                            backgroundColor: 'rgba(254, 44, 85, 0.8)'
+                        },
+                        {
+                            label: 'Likes',
+                            data: [],
+                            backgroundColor: 'rgba(255, 107, 157, 0.8)'
+                        },
+                        {
+                            label: 'Regalos',
+                            data: [],
+                            backgroundColor: 'rgba(255, 215, 0, 0.8)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: {
+                            labels: { color: 'rgba(255,255,255,0.9)' }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { color: 'rgba(255,255,255,0.7)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        },
+                        x: {
+                            ticks: { color: 'rgba(255,255,255,0.7)' },
+                            grid: { color: 'rgba(255,255,255,0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateChart(chart, label, data) {
+            if (!chart) return;
+
+            chart.data.labels.push(label);
+            if (Array.isArray(data)) {
+                data.forEach((value, index) => {
+                    chart.data.datasets[index].data.push(value);
+                });
+            } else {
+                chart.data.datasets[0].data.push(data);
+            }
+
+            // Limitar a últimos 20 puntos
+            if (chart.data.labels.length > 20) {
+                chart.data.labels.shift();
+                chart.data.datasets.forEach(dataset => dataset.data.shift());
+            }
+
+            chart.update();
+        }
+
+        function createLikeAnimation() {
+            const like = document.createElement('div');
+            like.className = 'like-animation';
+            like.textContent = '❤️';
+            like.style.left = Math.random() * window.innerWidth + 'px';
+            like.style.bottom = '0px';
+            document.body.appendChild(like);
+
+            setTimeout(() => like.remove(), 2000);
+        }
+
+        // Socket eventos
+        socket.on('status', (data) => {
+            if (data.connected) {
+                updateStatus('✅ Conectado a @' + data.username, false);
+            } else {
+                updateStatus('❌ ' + (data.error || 'Desconectado'), true);
+            }
+        });
+
+        socket.on('stats-update', (data) => {
+            // Mapear datos del servidor a stats locales
+            stats.viewers = data.viewers || 0;
+            stats.uniqueViewers = data.uniqueViewers || 0;
+            stats.peakViewers = data.peakViewers || 0;
+            stats.likes = data.likes || 0;
+            stats.comments = data.totalComments || 0;
+            stats.gifts = data.totalGifts || 0;
+            stats.diamonds = data.totalDiamonds || 0;
+            stats.followers = data.followers || 0;
+            stats.shares = data.shares || 0;
+
+            document.getElementById('viewerCount').textContent = stats.viewers;
+            document.getElementById('uniqueViewers').textContent = stats.uniqueViewers;
+            document.getElementById('peakViewers').textContent = stats.peakViewers;
+            document.getElementById('likeCount').textContent = stats.likes.toLocaleString();
+            document.getElementById('commentCount').textContent = stats.comments;
+            document.getElementById('giftCount').textContent = stats.gifts;
+            document.getElementById('diamondCount').textContent = stats.diamonds.toLocaleString();
+            document.getElementById('followerCount').textContent = stats.followers;
+            document.getElementById('shareCount').textContent = stats.shares;
+        });
+
+        socket.on('viewers', (data) => {
+            stats.viewers = data.count;
+            stats.peakViewers = data.peak;
+            document.getElementById('viewerCount').textContent = data.count;
+            document.getElementById('peakViewers').textContent = data.peak;
+
+            // Actualizar gráfico
+            const now = new Date();
+            const timeLabel = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+            updateChart(charts.viewers, timeLabel, data.count);
+        });
+
+        socket.on('metrics-update', (data) => {
+            document.getElementById('commentsPerMin').textContent = data.commentsPerMinute || 0;
+            document.getElementById('likesPerMin').textContent = data.likesPerMinute || 0;
+            document.getElementById('engagementRate').textContent = data.engagementRate + '%';
+
+            // Actualizar gráfico de engagement
+            const now = new Date();
+            const timeLabel = now.getHours() + ':' + String(now.getMinutes()).padStart(2, '0');
+            updateChart(charts.engagement, timeLabel, [
+                data.commentsPerMinute,
+                data.likesPerMinute / 10, // Escalar para visualización
+                data.giftsPerMinute
+            ]);
+        });
+
+        socket.on('chat-message', (data) => {
+            // Incrementar contador de comentarios
+            stats.comments++;
+            document.getElementById('commentCount').textContent = stats.comments;
+
+            const messagesDiv = document.getElementById('messages');
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-message';
+
+            // Emoji para sentiment
+            let sentimentEmoji = '😐';
+            let sentimentClass = 'sentiment-neutral';
+            if (data.sentiment === 'positive') {
+                sentimentEmoji = '😊';
+                sentimentClass = 'sentiment-positive';
+            } else if (data.sentiment === 'negative') {
+                sentimentEmoji = '😠';
+                sentimentClass = 'sentiment-negative';
+            }
+
+            // Bot badge
+            let botBadge = '';
+            if (data.isBot && data.botScore >= 80) {
+                botBadge = '<span class="bot-badge bot-confirmed">🤖 BOT</span>';
+            } else if (data.isBot && data.botScore >= 60) {
+                botBadge = '<span class="bot-badge bot-likely">⚠️ Sospechoso</span>';
+            } else if (data.isBot && data.botScore >= 30) {
+                botBadge = '<span class="bot-badge bot-suspicious">👀</span>';
+            }
+
+            msgEl.innerHTML = `
+                <div class="chat-avatar">💬</div>
+                <div class="chat-content">
+                    <div class="chat-username">
+                        ${data.username}
+                        <span class="sentiment-badge ${sentimentClass}">${sentimentEmoji}</span>
+                        ${botBadge}
+                    </div>
+                    <div class="chat-text">${data.message}</div>
+                </div>
+            `;
+            messagesDiv.insertBefore(msgEl, messagesDiv.firstChild);
+
+            // Limitar mensajes
+            while (messagesDiv.children.length > 30) {
+                messagesDiv.removeChild(messagesDiv.lastChild);
+            }
+        });
+
+        socket.on('sentiment-update', (data) => {
+            document.getElementById('positivePercent').textContent = data.positivePercent + '%';
+            document.getElementById('neutralPercent').textContent = data.neutralPercent + '%';
+            document.getElementById('negativePercent').textContent = data.negativePercent + '%';
+
+            // Actualizar gráfico de sentiment
+            if (charts.sentiment) {
+                charts.sentiment.data.datasets[0].data = [
+                    data.positive,
+                    data.neutral,
+                    data.negative
+                ];
+                charts.sentiment.update();
+            }
+        });
+
+        socket.on('like', (data) => {
+            stats.likes = data.total;
+            document.getElementById('likeCount').textContent = data.total.toLocaleString();
+
+            // Crear animación
+            for (let i = 0; i < Math.min(data.count, 3); i++) {
+                setTimeout(() => createLikeAnimation(), i * 100);
+            }
+        });
+
+        socket.on('gift', (data) => {
+            // Actualizar contadores de gifts y diamantes
+            stats.gifts += data.count;
+            stats.diamonds += data.totalValue;
+
+            document.getElementById('giftCount').textContent = stats.gifts;
+            document.getElementById('diamondCount').textContent = stats.diamonds.toLocaleString();
+
+            const messagesDiv = document.getElementById('messages');
+            const giftEl = document.createElement('div');
+            giftEl.className = 'gift-notification';
+            giftEl.innerHTML = `
+                ${data.giftImage ? `<img src="${data.giftImage}" class="gift-image">` : '🎁'}
+                <div>
+                    <strong>${data.username}</strong> envió
+                    <strong>${data.count}x ${data.giftName}</strong>
+                    (💎 ${data.totalValue} diamantes)
+                </div>
+            `;
+            messagesDiv.insertBefore(giftEl, messagesDiv.firstChild);
+        });
+
+        socket.on('follow', (data) => {
+            stats.followers++;
+            document.getElementById('followerCount').textContent = stats.followers;
+        });
+
+        socket.on('share', (data) => {
+            stats.shares = data.total;
+            document.getElementById('shareCount').textContent = stats.shares;
+        });
+
+        socket.on('member-join', (data) => {
+            if (data.uniqueViewers) {
+                document.getElementById('uniqueViewers').textContent = data.uniqueViewers;
+            }
+        });
+
+        socket.on('leaderboards-update', (data) => {
+            // Top Commenters
+            const commentersDiv = document.getElementById('topCommenters');
+            if (data.topCommenters && data.topCommenters.length > 0) {
+                commentersDiv.innerHTML = data.topCommenters.map((item, index) => `
+                    <div class="leaderboard-item">
+                        <span class="leaderboard-rank">#${index + 1}</span>
+                        <span class="leaderboard-username">@${item.username}</span>
+                        <span class="leaderboard-value">${item.value} 💬</span>
+                    </div>
+                `).join('');
+            }
+
+            // Top Donors
+            const donorsDiv = document.getElementById('topDonors');
+            if (data.topDonors && data.topDonors.length > 0) {
+                donorsDiv.innerHTML = data.topDonors.map((item, index) => `
+                    <div class="leaderboard-item">
+                        <span class="leaderboard-rank">#${index + 1}</span>
+                        <span class="leaderboard-username">@${item.username || 'Unknown'}</span>
+                        <span class="leaderboard-value">💎 ${item.value || 0}</span>
+                    </div>
+                `).join('');
+            } else {
+                donorsDiv.innerHTML = '<div style="text-align: center; opacity: 0.5; padding: 20px;">No hay donadores aún</div>';
+            }
+        });
+
+        socket.on('bot-stats-update', (data) => {
+            document.getElementById('totalUsers').textContent = data.totalUsers || 0;
+            document.getElementById('suspectedBots').textContent = data.suspectedBots || 0;
+            document.getElementById('confirmedBots').textContent = data.confirmedBots || 0;
+            document.getElementById('botPercentage').textContent = (data.botPercentage || 0) + '%';
+
+            // Actualizar lista de bots
+            const botListDiv = document.getElementById('botList');
+            if (data.botList && data.botList.length > 0) {
+                botListDiv.innerHTML = data.botList.map((bot, index) => {
+                    let classType = 'suspicious';
+                    let icon = '👀';
+                    let label = 'Sospechoso';
+
+                    if (bot.botScore >= 80) {
+                        classType = 'confirmed';
+                        icon = '🤖';
+                        label = 'Bot Confirmado';
+                    } else if (bot.botScore >= 60) {
+                        classType = 'likely';
+                        icon = '⚠️';
+                        label = 'Probable Bot';
+                    }
+
+                    return `
+                        <div class="bot-list-item ${classType}">
+                            <div>
+                                <strong>${icon} @${bot.username}</strong>
+                                <div style="font-size: 12px; opacity: 0.7;">
+                                    ${bot.messageCount} mensajes • ${bot.repetitionRate}% repetición
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-weight: bold; font-size: 18px; color: ${
+                                    bot.botScore >= 80 ? '#ff0000' :
+                                    bot.botScore >= 60 ? '#ffaa00' : '#ffff00'
+                                };">${bot.botScore}</div>
+                                <div style="font-size: 11px; opacity: 0.7;">${label}</div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                botListDiv.innerHTML = '<div style="text-align: center; opacity: 0.5; padding: 20px;">No se han detectado bots</div>';
+            }
+        });
+
+        socket.on('stream-end', (data) => {
+            updateStatus(`🔴 LIVE finalizado - Duración: ${data.duration.toFixed(1)} minutos`, false);
+        });
+
+        socket.on('error', (data) => {
+            console.error('Error:', data.message);
+        });
+    </script>
+</body>
+</html>

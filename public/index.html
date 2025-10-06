@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok LIVE Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #000000, #fe2c55);
+            color: white;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #connectForm {
+            text-align: center;
+            padding: 40px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 20px;
+            max-width: 500px;
+            margin: 50px auto;
+            backdrop-filter: blur(10px);
+        }
+
+        #connectForm.hidden {
+            display: none;
+        }
+
+        input {
+            padding: 15px;
+            font-size: 18px;
+            border: none;
+            border-radius: 10px;
+            width: 300px;
+            margin: 10px;
+        }
+
+        button {
+            padding: 15px 30px;
+            font-size: 18px;
+            background: #fe2c55;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        button:hover {
+            transform: scale(1.05);
+        }
+
+        #dashboard {
+            display: none;
+        }
+
+        #dashboard.active {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+
+        .stats-panel {
+            background: rgba(0,0,0,0.5);
+            padding: 30px;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            margin: 10px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            font-size: 20px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #fe2c55;
+        }
+
+        #chatFeed {
+            grid-column: 1 / -1;
+            background: rgba(0,0,0,0.7);
+            padding: 20px;
+            border-radius: 20px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .chat-message {
+            display: flex;
+            align-items: center;
+            padding: 12px;
+            margin: 8px 0;
+            background: rgba(255,255,255,0.1);
+            border-radius: 10px;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        .chat-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+            background: #fe2c55;
+        }
+
+        .gift-notification {
+            background: linear-gradient(135deg, #ffd700, #ff8c00);
+            color: #000;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 15px;
+            animation: giftPop 0.5s ease-out;
+            display: flex;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        .gift-image {
+            width: 50px;
+            height: 50px;
+            margin-right: 15px;
+        }
+
+        .like-animation {
+            position: fixed;
+            font-size: 60px;
+            animation: likeFloat 2s ease-out;
+            pointer-events: none;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateX(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        @keyframes giftPop {
+            0% {
+                transform: scale(0.5);
+                opacity: 0;
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        @keyframes likeFloat {
+            0% {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+            100% {
+                opacity: 0;
+                transform: translateY(-200px) scale(1.5);
+            }
+        }
+
+        #status {
+            text-align: center;
+            padding: 15px;
+            background: rgba(0,255,0,0.2);
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        #status.error {
+            background: rgba(255,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 48px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        h2 {
+            margin-bottom: 20px;
+            color: #fe2c55;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎵 TikTok LIVE Demo</h1>
+
+    <!-- Formulario de conexión -->
+    <div id="connectForm">
+        <h2>Conectar a un LIVE</h2>
+        <p style="margin-bottom: 20px;">Ingresa el usuario de TikTok (sin @)</p>
+        <input type="text" id="usernameInput" placeholder="Ej: usuario123" />
+        <br>
+        <button onclick="connectToLive()">🔴 Conectar</button>
+        <p style="margin-top: 20px; font-size: 14px; opacity: 0.8;">
+            El usuario debe estar en LIVE en este momento
+        </p>
+    </div>
+
+    <!-- Dashboard -->
+    <div id="dashboard">
+        <div id="status"></div>
+
+        <!-- Panel de estadísticas -->
+        <div class="stats-panel">
+            <h2>📊 Estadísticas en Vivo</h2>
+            <div class="stat-item">
+                <span>👁️ Viewers</span>
+                <span class="stat-value" id="viewerCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>❤️ Total Likes</span>
+                <span class="stat-value" id="likeCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>🎁 Total Regalos</span>
+                <span class="stat-value" id="giftCount">0</span>
+            </div>
+            <div class="stat-item">
+                <span>👤 Seguidores Nuevos</span>
+                <span class="stat-value" id="followerCount">0</span>
+            </div>
+        </div>
+
+        <!-- Eventos recientes -->
+        <div class="stats-panel">
+            <h2>⚡ Eventos Recientes</h2>
+            <div id="recentEvents" style="max-height: 300px; overflow-y: auto;"></div>
+        </div>
+
+        <!-- Feed del chat -->
+        <div id="chatFeed">
+            <h2>💬 Chat en Vivo</h2>
+            <div id="messages"></div>
+        </div>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        
+        let stats = {
+            viewers: 0,
+            likes: 0,
+            gifts: 0,
+            followers: 0
+        };
+
+        function connectToLive() {
+            const username = document.getElementById('usernameInput').value.trim();
+            
+            if (!username) {
+                alert('Por favor ingresa un nombre de usuario');
+                return;
+            }
+
+            // Ocultar formulario y mostrar dashboard
+            document.getElementById('connectForm').classList.add('hidden');
+            document.getElementById('dashboard').classList.add('active');
+            
+            // Conectar al LIVE
+            socket.emit('start-connection', username);
+            
+            updateStatus('Conectando a @' + username + '...', false);
+        }
+
+        function updateStatus(message, isError = false) {
+            const statusDiv = document.getElementById('status');
+            statusDiv.textContent = message;
+            statusDiv.className = isError ? 'error' : '';
+        }
+
+        function addRecentEvent(emoji, text) {
+            const eventsDiv = document.getElementById('recentEvents');
+            const eventEl = document.createElement('div');
+            eventEl.className = 'chat-message';
+            eventEl.innerHTML = `<span style="font-size: 24px; margin-right: 10px;">${emoji}</span> ${text}`;
+            eventsDiv.insertBefore(eventEl, eventsDiv.firstChild);
+            
+            // Limitar a 10 eventos
+            while (eventsDiv.children.length > 10) {
+                eventsDiv.removeChild(eventsDiv.lastChild);
+            }
+        }
+
+        function createLikeAnimation() {
+            const like = document.createElement('div');
+            like.className = 'like-animation';
+            like.textContent = '❤️';
+            like.style.left = Math.random() * window.innerWidth + 'px';
+            like.style.bottom = '0px';
+            document.body.appendChild(like);
+            
+            setTimeout(() => like.remove(), 2000);
+        }
+
+        // Socket eventos
+        socket.on('status', (data) => {
+            if (data.connected) {
+                updateStatus('✅ Conectado a @' + data.username, false);
+            } else {
+                updateStatus('❌ ' + (data.error || 'Desconectado'), true);
+            }
+        });
+
+        socket.on('chat-message', (data) => {
+            const messagesDiv = document.getElementById('messages');
+            const msgEl = document.createElement('div');
+            msgEl.className = 'chat-message';
+            msgEl.innerHTML = `
+                <div class="chat-avatar"></div>
+                <div>
+                    <strong>${data.username}:</strong> ${data.message}
+                </div>
+            `;
+            messagesDiv.insertBefore(msgEl, messagesDiv.firstChild);
+            
+            addRecentEvent('💬', `${data.username}: ${data.message.substring(0, 30)}...`);
+            
+            // Limitar mensajes
+            while (messagesDiv.children.length > 20) {
+                messagesDiv.removeChild(messagesDiv.lastChild);
+            }
+        });
+
+        socket.on('like', (data) => {
+            stats.likes = data.total;
+            document.getElementById('likeCount').textContent = stats.likes;
+            
+            // Crear animación de corazón
+            for (let i = 0; i < Math.min(data.count, 5); i++) {
+                setTimeout(() => createLikeAnimation(), i * 100);
+            }
+            
+            addRecentEvent('❤️', `${data.username} envió ${data.count} likes`);
+        });
+
+        socket.on('gift', (data) => {
+            stats.gifts++;
+            document.getElementById('giftCount').textContent = stats.gifts;
+            
+            const messagesDiv = document.getElementById('messages');
+            const giftEl = document.createElement('div');
+            giftEl.className = 'gift-notification';
+            giftEl.innerHTML = `
+                ${data.giftImage ? `<img src="${data.giftImage}" class="gift-image">` : '🎁'}
+                <div>
+                    <strong>${data.username}</strong> envió 
+                    <strong>${data.count}x ${data.giftName}</strong>
+                    (💎 ${data.totalValue} diamantes)
+                </div>
+            `;
+            messagesDiv.insertBefore(giftEl, messagesDiv.firstChild);
+            
+            addRecentEvent('🎁', `${data.username} → ${data.count}x ${data.giftName}`);
+        });
+
+        socket.on('follow', (data) => {
+            stats.followers++;
+            document.getElementById('followerCount').textContent = stats.followers;
+            addRecentEvent('👤', `${data.username} está siguiendo!`);
+        });
+
+        socket.on('share', (data) => {
+            addRecentEvent('📤', `${data.username} compartió el LIVE`);
+        });
+
+        socket.on('viewers', (data) => {
+            stats.viewers = data.count;
+            document.getElementById('viewerCount').textContent = stats.viewers;
+        });
+
+        socket.on('member-join', (data) => {
+            addRecentEvent('🚪', `${data.username} entró al LIVE`);
+        });
+
+        socket.on('stats-update', (data) => {
+            stats = data;
+            document.getElementById('viewerCount').textContent = stats.viewers;
+            document.getElementById('likeCount').textContent = stats.likes;
+            document.getElementById('giftCount').textContent = stats.totalGifts;
+            document.getElementById('followerCount').textContent = stats.followers;
+        });
+    </script>
+</body>
+</html>
