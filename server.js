@@ -304,10 +304,37 @@ function updateBotStats() {
         }));
 }
 
+// Almacenamiento para roomInfo y availableGifts
+let roomInfo = null;
+let availableGifts = [];
+
+// Constantes de conversión de revenue
+const REVENUE_CONFIG = {
+    diamondToUSD: 0.005,        // 1 diamante = $0.005 USD
+    creatorCut: 0.50,           // Creador recibe 50%
+    tiktokCut: 0.50             // TikTok se queda con 50%
+};
+
+// Función para calcular revenue
+function calculateRevenue(diamonds) {
+    const totalUSD = diamonds * REVENUE_CONFIG.diamondToUSD;
+    const creatorEarnings = totalUSD * REVENUE_CONFIG.creatorCut;
+    const tiktokEarnings = totalUSD * REVENUE_CONFIG.tiktokCut;
+
+    return {
+        totalUSD: totalUSD.toFixed(2),
+        creatorEarnings: creatorEarnings.toFixed(2),
+        tiktokEarnings: tiktokEarnings.toFixed(2),
+        diamonds: diamonds
+    };
+}
+
 // Función para conectar a TikTok LIVE
 function connectToTikTok(username) {
     tiktokConnection = new WebcastPushConnection(username, {
-        enableExtendedGiftInfo: true  // ← HABILITAR INFO EXTENDIDA DE REGALOS
+        enableExtendedGiftInfo: true,      // ← INFO EXTENDIDA DE REGALOS
+        fetchRoomInfoOnConnect: true,      // ← OBTENER INFO DE LA SALA
+        processInitialData: true           // ← PROCESAR DATOS INICIALES
     });
     sessionStartTime = new Date();
 
@@ -333,7 +360,71 @@ function connectToTikTok(username) {
     // Cuando se conecta
     tiktokConnection.connect().then(state => {
         console.log(`✅ Conectado a @${state.roomId}`);
-        io.emit('status', { connected: true, username: username, startTime: sessionStartTime });
+
+        // Capturar roomInfo si está disponible
+        if (state.roomInfo) {
+            roomInfo = state.roomInfo;
+            console.log('📋 RoomInfo capturado:', {
+                roomId: roomInfo.id || roomInfo.room_id,
+                title: roomInfo.title,
+                ownerUsername: roomInfo.owner?.uniqueId || roomInfo.owner?.unique_id,
+                ownerNickname: roomInfo.owner?.nickname,
+                viewerCount: roomInfo.stats?.viewerCount || roomInfo.user_count,
+                likes: roomInfo.stats?.likeCount || roomInfo.like_count
+            });
+
+            // Emitir roomInfo al cliente
+            io.emit('room-info', {
+                roomId: roomInfo.id || roomInfo.room_id,
+                title: roomInfo.title,
+                owner: {
+                    username: roomInfo.owner?.uniqueId || roomInfo.owner?.unique_id,
+                    nickname: roomInfo.owner?.nickname,
+                    avatarUrl: roomInfo.owner?.profilePictureUrl || roomInfo.owner?.avatar_thumb?.url_list?.[0],
+                    verified: roomInfo.owner?.verified,
+                    followerCount: roomInfo.owner?.followerCount || roomInfo.owner?.follower_count
+                },
+                stats: {
+                    viewerCount: roomInfo.stats?.viewerCount || roomInfo.user_count,
+                    likeCount: roomInfo.stats?.likeCount || roomInfo.like_count,
+                    totalViews: roomInfo.stats?.totalViews || roomInfo.total_user
+                },
+                liveStatus: roomInfo.status,
+                startTime: roomInfo.create_time || roomInfo.createTime
+            });
+        }
+
+        // Capturar availableGifts si está disponible
+        if (state.availableGifts) {
+            availableGifts = state.availableGifts;
+            console.log(`🎁 Catálogo de regalos capturado: ${availableGifts.length} regalos disponibles`);
+
+            // Log primeros 5 regalos para debug
+            availableGifts.slice(0, 5).forEach(gift => {
+                console.log(`  - ${gift.name}: ${gift.diamond_count} diamantes (ID: ${gift.id})`);
+            });
+
+            // Emitir catálogo al cliente
+            io.emit('available-gifts', {
+                total: availableGifts.length,
+                gifts: availableGifts.map(gift => ({
+                    id: gift.id,
+                    name: gift.name,
+                    diamonds: gift.diamond_count,
+                    imageUrl: gift.icon?.url_list?.[0] || gift.image?.url_list?.[0],
+                    type: gift.type,
+                    description: gift.describe
+                }))
+            });
+        }
+
+        io.emit('status', {
+            connected: true,
+            username: username,
+            startTime: sessionStartTime,
+            hasRoomInfo: !!roomInfo,
+            giftsCount: availableGifts.length
+        });
     }).catch(err => {
         console.error('❌ Error conectando:', err);
         io.emit('status', { connected: false, error: err.message });
@@ -534,6 +625,10 @@ function connectToTikTok(username) {
             console.log(`🎁 ${data.uniqueId} envió ${giftCount}x ${giftName} (${diamondCount} diamantes c/u) = ${diamondValue} total`);
             console.log(`📊 Stats actualizados: totalGifts=${stats.totalGifts}, totalDiamonds=${stats.totalDiamonds}`);
 
+            // Calcular revenue
+            const revenue = calculateRevenue(stats.totalDiamonds);
+            console.log(`💰 Revenue actualizado: $${revenue.totalUSD} (Creador: $${revenue.creatorEarnings})`);
+
             io.emit('gift', {
                 username: data.uniqueId,
                 giftName: giftName,
@@ -541,7 +636,11 @@ function connectToTikTok(username) {
                 count: giftCount,
                 diamonds: diamondCount,
                 totalValue: diamondValue,
-                profilePicture: data.profilePictureUrl
+                profilePicture: data.profilePictureUrl,
+                revenue: {
+                    usd: (diamondValue * REVENUE_CONFIG.diamondToUSD).toFixed(2),
+                    creatorEarnings: (diamondValue * REVENUE_CONFIG.diamondToUSD * REVENUE_CONFIG.creatorCut).toFixed(2)
+                }
             });
 
             // Emitir stats actualizados inmediatamente después del regalo
@@ -550,6 +649,16 @@ function connectToTikTok(username) {
                 uniqueViewers: stats.uniqueViewers.size,
                 uniqueCommenters: stats.uniqueCommenters.size,
                 sessionDuration: sessionStartTime ? (new Date() - sessionStartTime) / 1000 / 60 : 0
+            });
+
+            // Emitir revenue analytics
+            const sessionDurationMinutes = sessionStartTime ? (new Date() - sessionStartTime) / 1000 / 60 : 1;
+            io.emit('revenue-update', {
+                ...revenue,
+                revenuePerMinute: (revenue.totalUSD / sessionDurationMinutes).toFixed(2),
+                revenuePerViewer: stats.viewers > 0 ? (revenue.totalUSD / stats.viewers).toFixed(4) : 0,
+                projectedHourly: (revenue.totalUSD / sessionDurationMinutes * 60).toFixed(2),
+                projectedDaily: (revenue.totalUSD / sessionDurationMinutes * 60 * 24).toFixed(2)
             });
 
             // Emitir leaderboards actualizados
